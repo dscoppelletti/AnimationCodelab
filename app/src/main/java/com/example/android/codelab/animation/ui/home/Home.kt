@@ -671,8 +671,42 @@ private fun WeatherRow(
  */
 @Composable
 private fun LoadingRow() {
-    // TODO 5: Animate this value between 0f and 1f, then back to 0f repeatedly.
-    val alpha = 1f
+    /* BEGIN-5: Animate this value between 0f and 1f, then back to 0f
+    repeatedly. */
+    // InfiniteTransition is similar to the Transition API: they both animate
+    // multiple values, but while Transition animates values based on state
+    // changes, InfiniteTransition animates values indefinitely.
+    // val alpha = 1f
+    val infiniteTransition = rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        // We can also specify an AnimationSpec for this animation, but this API
+        // only takes an InfiniteRepeatableSpec: infiniteRepeatable wraps any
+        // duration-based AnimationSpec and makes it repeatable.
+        animationSpec = infiniteRepeatable(
+            // The keyFrames animation is another type of animationSpec that
+            // allows changes of the in-progress value at different millis.
+            animation = keyframes {
+                durationMillis = 1000
+                // We can define key frames in the animation, for example, at
+                // 500ms of the animation, we would like the alpha value to be
+                // 0.7f. This will change the animation progression: it'll
+                // progress quickly from 0 to 0.7 within 500ms of the animation,
+                // and from 0.7 to 1.0 from 500ms to 1000ms of the animation,
+                // slowing down towards the end.
+                0.7f at 500
+            },
+            // The default repeatMode is RepeatMode.Restart that transitions
+            // from initialValue to targetValue and starts again at the
+            // initialValue. By setting the repeatMode to RepeatMode.Reverse,
+            // the animation progresses from initialValue to targetValue and
+            // then from targetValue to initialValue.
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+    /* END-5 */
     Row(
         modifier = Modifier
             .heightIn(min = 64.dp)
