@@ -319,15 +319,21 @@ private fun HomeFloatingActionButton(
                 imageVector = Icons.Default.Edit,
                 contentDescription = null
             )
+            /* BEGIN-2-1: Animate this visibility change. */
+            // AnimatedVisibility runs its animation every time the specified
+            // Boolean value changes. By default, AnimatedVisibility shows the
+            // element by fading in and expanding it, and hides it by fading out
+            // and shrinking.
+            // if (extended) {
             // Toggle the visibility of the content with animation.
-            // TODO 2-1: Animate this visibility change.
-            if (extended) {
+            AnimatedVisibility(extended) {
                 Text(
                     text = stringResource(R.string.edit),
                     modifier = Modifier
                         .padding(start = 8.dp, top = 3.dp)
                 )
             }
+            /* END-2-1 */
         }
     }
 }
@@ -337,10 +343,42 @@ private fun HomeFloatingActionButton(
  */
 @Composable
 private fun EditMessage(shown: Boolean) {
-    // TODO 2-2: The message should slide down from the top on appearance and slide up on
-    //           disappearance.
+    /* BEGIN-2-2: The message should slide down from the top on appearance and
+    slide up on disappearance. */
     AnimatedVisibility(
-        visible = shown
+        visible = shown,
+        // We can use the slideInVertically function to create an
+        // EnterTransition and slideOutVertically for the exit transition.
+        enter = slideInVertically(
+            // The default behavior of slideInVertically and slideOutVertically
+            // use half the height of the item: we can adjust the default
+            // behavior to use the entire height of the item to animate it
+            // properly.
+            // To ensure that the item slides in from the top of the screen, we
+            // return its negative value since the top of the screen has the
+            // value of 0.
+            // When using slideInVertically, the target offset for after slide
+            // in is always 0 (pixel). initialOffsetY can be specified either as
+            // an absolute value or a percentage of the full height of the
+            // element via a lambda function.
+            initialOffsetY = { fullHeight -> -fullHeight },
+            // We can customize our animation more with the animationSpec
+            // parameter. animationSpec is a common parameter for many Animation
+            // APIs including EnterTransition and ExitTransition.
+            animationSpec = tween(
+                durationMillis = 150,
+                easing = LinearOutSlowInEasing
+            )
+        ),
+        exit = slideOutVertically(
+            // Similarly, slideOutVertically assumes the initial offset is 0, so
+            // only targetOffsetY needs to be specified.
+            targetOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(
+                durationMillis = 250,
+                easing = FastOutLinearInEasing
+            )
+        )
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -353,6 +391,7 @@ private fun EditMessage(shown: Boolean) {
             )
         }
     }
+    /* END-2-2 */
 }
 
 /**
