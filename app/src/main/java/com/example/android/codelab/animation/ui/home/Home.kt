@@ -536,10 +536,57 @@ private fun HomeTabIndicator(
     tabPositions: List<TabPosition>,
     tabPage: TabPage
 ) {
-    // TODO 4: Animate these value changes.
-    val indicatorLeft = tabPositions[tabPage.ordinal].left
-    val indicatorRight = tabPositions[tabPage.ordinal].right
-    val color = if (tabPage == TabPage.Home) PaleDogwood else Green
+    /* BEGIN-4: Animate these value changes. */
+    // To animate these multiple values simultaneously, we can use a Transition
+    // A Transition can be created with the updateTransition function passing
+    // the index of the tab currently selected as the targetState parameter.
+    val transition = updateTransition(tabPage, label = "Tab indicator")
+    // Each animating value can be declared with the animate* extension
+    // functions of Transition.
+    // We can use a by declaration and make it a local delegated property here
+    // again because the animate* functions return a State object.
+    // - Horizontal position of the left edge of the indicator in the tab row
+    // val indicatorLeft = tabPositions[tabPage.ordinal].left
+    val indicatorLeft by transition.animateDp(
+        transitionSpec = {
+            if (TabPage.Home isTransitioningTo TabPage.Work) {
+                // Indicator moves to the right.
+                // The left edge moves slower than the right edge.
+                spring(stiffness = Spring.StiffnessVeryLow)
+            } else {
+                // Indicator moves to the left.
+                // The left edge moves faster than the right edge.
+                spring(stiffness = Spring.StiffnessMedium)
+            }
+        },
+        label = "Indicator left"
+    ) { page ->
+        tabPositions[page.ordinal].left
+    }
+    // - Horizontal position of the right edge of the indicator
+    // val indicatorRight = tabPositions[tabPage.ordinal].right
+    val indicatorRight by transition.animateDp(
+        transitionSpec = {
+            if (TabPage.Home isTransitioningTo TabPage.Work) {
+                // Indicator moves to the right
+                // The right edge moves faster than the left edge.
+                spring(stiffness = Spring.StiffnessMedium)
+            } else {
+                // Indicator moves to the left.
+                // The right edge moves slower than the left edge.
+                spring(stiffness = Spring.StiffnessVeryLow)
+            }
+        },
+        label = "Indicator right"
+    ) { page ->
+        tabPositions[page.ordinal].right
+    }
+    // - The color is also changed between peach and green.
+    // val color = if (tabPage == TabPage.Home) PaleDogwood else Green
+    val color by transition.animateColor(label = "Border color") { page ->
+        if (page == TabPage.Home) PaleDogwood else Green
+    }
+    /* END-4 */
     Box(
         Modifier
             .fillMaxSize()
