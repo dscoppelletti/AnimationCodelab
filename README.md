@@ -8,7 +8,9 @@ In this codelab, you will learn how to use some Animation APIs in Jetpack Compos
 
 ## References
 
+* [Compose Animations](http://developer.android.com/jetpack/compose/animation)
 * [Customizing Animations documentation](http://developer.android.com/jetpack/compose/animation/introduction#customize-animations)
+* [Compose Gesture documentation](http://developer.android.com/jetpack/compose/gestures)
 
 ## License
 

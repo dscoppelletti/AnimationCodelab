@@ -16,6 +16,8 @@
 
 package com.example.android.codelab.animation.ui.home
 
+import android.annotation.SuppressLint
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.animateColorAsState
@@ -26,6 +28,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.calculateTargetValue
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -44,16 +47,12 @@ import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.WindowInsetsSides.Companion.Horizontal
-import androidx.compose.foundation.layout.WindowInsetsSides.Companion.Top
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,7 +62,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.windowInsetsTopHeight
@@ -95,7 +93,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -133,6 +130,8 @@ import com.example.android.codelab.animation.ui.Seashell
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 private enum class TabPage {
     Home, Work
@@ -677,7 +676,7 @@ private fun LoadingRow() {
     // multiple values, but while Transition animates values based on state
     // changes, InfiniteTransition animates values indefinitely.
     // val alpha = 1f
-    val infiniteTransition = rememberInfiniteTransition()
+    val infiniteTransition = rememberInfiniteTransition(label = "Loading row")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -766,47 +765,170 @@ private fun TaskRow(task: String, onRemove: () -> Unit) {
  *
  * @param onDismissed Called when the element is swiped to the edge of the screen.
  */
+@SuppressLint("ReturnFromAwaitPointerEventScope",
+    "MultipleAwaitPointerEventScopes")
 private fun Modifier.swipeToDismiss(
     onDismissed: () -> Unit
 ): Modifier = composed {
-    // TODO 6-1: Create an Animatable instance for the offset of the swiped element.
+    /* BEGIN-6-1: Create an Animatable instance for the offset of the swiped
+    element. */
+    // A user places their finger on screen, generating a touch event with an
+    // x and y coordinate, they will then move their finger to the right or
+    // left - moving the x and y based on their movement. The item they are
+    // touching needs to move with their finger, so we will update the position
+    // of the item based on the touch event's position and velocity.
+    // Using the pointerInput modifier, we can get low-level access to incoming
+    // pointer touch events and track the velocity in which the user drags using
+    // the same pointer. If they let go before the item has gone past the
+    // boundary for dismissing, the item will bounce back into position.
+    //
+    // Any ongoing animation might be intercepted by a touch event. Furthermore,
+    // the animation value might not be the only source of truth. In other
+    // words, we might need to synchronize the animation value with values
+    // coming from touch events.
+    // Animatable has several features that are useful in gesture scenarios,
+    // such as the ability to snap instantly to the new value coming in from a
+    // gesture and stop any ongoing animation when a new touch event is
+    // triggered.
+
+    // Horizontal offset of the swipeable element.
+    val offsetX = remember { Animatable(0f) }
+    /* END-6-1 */
+
     pointerInput(Unit) {
         // Used to calculate a settling position of a fling animation.
         val decay = splineBasedDecay<Float>(this)
-        // Wrap in a coroutine scope to use suspend functions for touch events and animation.
+        // Wrap in a coroutine scope to use suspend functions for touch events
+        // and animation.
         coroutineScope {
             while (true) {
-                // Wait for a touch down event.
+                // Wait for a touch down event: track the pointerId based on the
+                // touch.
+                // The awaitPointerEventScope is a suspend function that can
+                // await user input events and respond to them.
                 val pointerId = awaitPointerEventScope { awaitFirstDown().id }
-                // TODO 6-2: Touch detected; the animation should be stopped.
+
+                /* BEGIN-6-2: Touch detected; the animation should be
+                stopped. */
+                // We have just received a touch down event. We should intercept
+                // the animation if it is currently running by calling stop on
+                // the Animatable: it is ignored if the animation is not
+                // running.
+                offsetX.stop()
+
                 // Prepare for drag events and record velocity of a fling.
+                // The VelocityTracker will be used to calculate how fast a user
+                // is moving from left to right.
                 val velocityTracker = VelocityTracker()
+                /* END-6-2 */
+
                 // Wait for drag events.
                 awaitPointerEventScope {
                     horizontalDrag(pointerId) { change ->
-                        // TODO 6-3: Apply the drag change to the Animatable offset.
+                        /* BEGIN-6-3: Apply the drag change to the Animatable
+                        offset. */
+                        // Get the drag amount change to offset the item with
+                        val horizontalDragOffset = offsetX.value +
+                                change.positionChange().x
+
+                        // We have to synchronize the position of the touch
+                        // event into the animation value by using snapTo on the
+                        // Animatable: it has to be called inside another launch
+                        // block as awaitPointerEventScope and horizontalDrag
+                        // are restricted coroutine scopes.
+
+                        // Need to call this in a launch block in order to run
+                        // it separately outside of the awaitPointerEventScope
+                        launch {
+                            // Instantly set the Animable to the dragOffset to
+                            // ensure its moving as the user's finger moves
+                            offsetX.snapTo(horizontalDragOffset)
+                        }
+
                         // Record the velocity of the drag.
-                        velocityTracker.addPosition(change.uptimeMillis, change.position)
+                        velocityTracker.addPosition(change.uptimeMillis,
+                            change.position)
+
                         // Consume the gesture event, not passed to external
-                        if (change.positionChange() != Offset.Zero) change.consume()
+                        if (change.positionChange() != Offset.Zero) {
+                            change.consume()
+                        }
+                        /* END-6-3 */
                     }
                 }
+
                 // Dragging finished. Calculate the velocity of the fling.
                 val velocity = velocityTracker.calculateVelocity().x
-                // TODO 6-4: Calculate the eventual position where the fling should settle
-                //           based on the current offset value and velocity
-                // TODO 6-5: Set the upper and lower bounds so that the animation stops when it
-                //           reaches the edge.
+
+                /* BEGIN-6-4: Calculate the eventual position where the fling
+                should settle based on the current offset value and velocity */
+                // The element has just been released and flung.
+                // We need to calculate the eventual position the fling is
+                // settling into in order to decide whether we should slide the
+                // element back to the original position, or slide it away and
+                // invoke the callback.
+
+                // Calculate where it would end up with the current velocity and
+                // position
+                val targetOffsetX = decay.calculateTargetValue(offsetX.value,
+                    velocity)
+                /* END-6-4 */
+
+                /* BEGIN-6-5: Set the upper and lower bounds so that the
+                animation stops when it reaches the edge. */
+                // We are about to start the animation. But before that, we want
+                // to set upper and lower value bounds to the Animatable so that
+                // it stops as soon as it reaches the bounds (-size.width and
+                // size.width since we don't want the offsetX to be able to
+                // extend past these two values).
+                // The pointerInput modifier allows us to access the size of the
+                // element by the size property, so let's use that to get our
+                // bounds.
+                offsetX.updateBounds(
+                    lowerBound = -size.width.toFloat(),
+                    upperBound = size.width.toFloat()
+                )
+                /* END-6-5 */
+
                 launch {
-                    // TODO 6-6: Slide back the element if the settling position does not go beyond
-                    //           the size of the element. Remove the element if it does.
+                    /* BEGIN-6-6: Slide back the element if the settling
+                    position does not go beyond the size of the element. Remove
+                    the element if it does. */
+                    // We can finally start our animation. We first compare the
+                    // settling position of the fling we calculated earlier and
+                    // the size of the element.
+                    if (targetOffsetX.absoluteValue <= size.width) {
+                        // The settling position is below the size, it means
+                        // that the velocity of the fling was not enough:
+                        // Slide back by using animateTo to animate the value
+                        // back to 0f.
+                        offsetX.animateTo(
+                            targetValue = 0f,
+                            initialVelocity = velocity
+                        )
+                    } else {
+                        // Enough velocity to slide away the element to the
+                        // edge:
+                        // Use animateDecay to start the fling animation.
+                        offsetX.animateDecay(velocity, decay)
+
+                        // The animation is finished (most likely by the bounds
+                        // we set earlier):
+                        // The element was swiped away.
+                        onDismissed()
+                    }
+                    /* END-6-6 */
                 }
             }
         }
     }
         .offset {
-            // TODO 6-7: Use the animating offset value here.
-            IntOffset(0, 0)
+            /* BEGIN-6-7: Use the animating offset value here. */
+            // Apply the offset to the element, this will move the element on
+            // screen to the value produced by our gesture or animation:
+            // IntOffset(0, 0)
+            IntOffset(offsetX.value.roundToInt(), 0)
+            /* END-6-7 */
         }
 }
 
