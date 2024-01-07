@@ -187,9 +187,23 @@ fun Home() {
 
     val lazyListState = rememberLazyListState()
 
+    /* BEGIN-1: Animate this color change. */
+    // Here, tabPage is a TabPage backed by a State object. Depending on its
+    // value, the background color is toggled between peach and green. We want
+    // to animate this value change.
+    // In order to animate a simple value change like this, we can use the
+    // animate*AsState APIs. You can create an animation value by wrapping the
+    // changing value with the corresponding variant of animate*AsState
+    // composables, animateColorAsState in this case. The returned value is a
+    // State<T> object, so we can use a local delegated property with a by
+    // declaration to treat it like a normal variable.
+    //
     // The background color. The value is changed by the current tab.
-    // TODO 1: Animate this color change.
-    val backgroundColor = if (tabPage == TabPage.Home) Seashell else GreenLight
+    // val backgroundColor = if (tabPage == TabPage.Home) Seashell else GreenLight
+    val backgroundColor by animateColorAsState(
+        targetValue = if (tabPage == TabPage.Home) Seashell else GreenLight,
+        label = "background color")
+    /* END-1 */
 
     // The coroutine scope for event handlers calling suspend functions.
     val coroutineScope = rememberCoroutineScope()
