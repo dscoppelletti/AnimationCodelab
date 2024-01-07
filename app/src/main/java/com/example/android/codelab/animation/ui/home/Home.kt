@@ -447,11 +447,13 @@ private fun TopicRow(topic: String, expanded: Boolean, onClick: () -> Unit) {
         shadowElevation = 2.dp,
         onClick = onClick
     ) {
-        // TODO 3: Animate the size change of the content.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
+            /* BEGIN-3: Animate the size change of the content. */
+                .animateContentSize()
+            /* END-3 */
         ) {
             Row {
                 Icon(

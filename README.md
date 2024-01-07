@@ -6,9 +6,9 @@ codelab.
 
 In this codelab, you will learn how to use some Animation APIs in Jetpack Compose.
 
-## Screenshot
+## References
 
-![Screenshot](screenshots/app.png)
+* [Customizing Animations documentation](http://developer.android.com/jetpack/compose/animation/introduction#customize-animations)
 
 ## License
 
